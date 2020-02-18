@@ -1,0 +1,110 @@
+using Newtonsoft.Json;
+using System;
+using System.IO;
+using System.Net;
+
+namespace _Json
+{
+    class Program
+    {
+        const string path = @"C:\"; // download path
+        static void Main(string[] args)
+        {
+            Console.WriteLine(DateTime.Now);
+            string json = GetJson();
+            var ip_info = JsonConvert.DeserializeObject<IpInfo>(json);
+            ip_info.Display();
+
+            Console.ReadKey();
+        }
+        static string GetJson()
+        {
+            string ip = SetIp();
+            if (IsJsonExist(ip))
+            {
+                Console.WriteLine("Local source\n");
+                return GetJsonFile(ip);
+            }
+            string url = $"http://free.ipwhois.io/json/{ip}?lang=en"; \\ or ru(Russian),...
+            string json = "";
+            WebRequest request = WebRequest.Create(url);
+            try
+            {
+                WebResponse response = request.GetResponse();
+                using (Stream stream = response.GetResponseStream())
+                {
+                    using (StreamReader reader = new StreamReader(stream))
+                    {
+                        json = reader.ReadToEnd();
+                    }
+                }
+                response.Close();
+                Console.WriteLine("Request completed - please wiat\n");
+                Save(ip,json);
+                return json;
+            }
+            catch (WebException)
+            {
+                Console.WriteLine("Couldn't get a respose");
+                return json;
+            }
+        }
+
+        static string GetJsonFile(string ip)
+        {
+            string json = "";
+            using (StreamReader reader = new StreamReader(path+$"\\{ip}.json")) \\ reading from already saved file
+            {
+                json = reader.ReadToEnd();
+            }
+            return json;
+        }
+        
+        // Check Valid Ip and Set value
+        static string SetIp()
+        {
+            while (true)
+                try
+                {
+                    Console.Write("\nEnter valid IPv4: ");
+                    string ip = Console.ReadLine();
+                    string[] oktets = ip.Split('.');
+                    if (oktets.Length == 4)
+                    {
+                        foreach (string oktet in oktets)
+                        {
+                            if (Convert.ToInt32(oktet) > 0 && Convert.ToInt32(oktet) < 256)
+                                continue;
+                            else throw new InvalidCastException();
+                        }
+                    }
+                    else throw new InvalidCastException();
+                    return ip;
+                }
+                catch (InvalidCastException)
+                {
+                    Console.WriteLine("Invalid IPv4 address\nTry again");
+                }
+                catch (FormatException)
+                {
+                    Console.WriteLine("Invalid IPv4 address\nTry again");
+                }
+        }
+        static void Save(string ip,string json)
+        {
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
+            using (StreamWriter writer = new StreamWriter(path + $"\\{ip}.json")) \\ create file as ip address and write all info 
+            {
+                writer.Write(json);
+            }
+        }
+        // Check file exists
+        static bool IsJsonExist(string ip)
+        {
+            if (File.Exists(path + $"\\{ip}.json"))
+                return true;
+            return false;
+        }
+    }
+}
